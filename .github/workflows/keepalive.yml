@@ -1,0 +1,46 @@
+name: Visit Apps
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"   # 每 6 小时运行一次
+  workflow_dispatch:        # 手动触发
+
+jobs:
+  run-visit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          pip install playwright
+          playwright install chromium
+
+      - name: Run visit_app.py
+        env:
+          URL_LIST: ${{ secrets.URL_LIST }}
+        run: |
+          python visit_app.py
+      - name: Keep Repository Alive
+        run: |
+          echo "Last backup: $(date -u '+%Y-%m-%d %H:%M:%S UTC') | ID: $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 8)" > keepalive.md
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add keepalive.md
+
+          if ! git diff --quiet --exit-code --cached; then
+            git commit -m "Auto-keepalive: $(date -u +%F)"
+            git pull --rebase
+            git push
+          else
+            echo "No changes to commit"
+          fi
